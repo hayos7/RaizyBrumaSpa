@@ -9,6 +9,62 @@ const services = [
 const screens = document.querySelectorAll('.screen');
 const navLinks = document.querySelectorAll('[data-screen]');
 const serviceSelect = document.getElementById('service');
+// EVENTO 4 - KEYUP
+
+const notesField =
+    document.getElementById('notes');
+
+notesField.addEventListener(
+    'keyup',
+    () => {
+
+        console.log(
+            'Caracteres:',
+            notesField.value.length
+        );
+
+    }
+);
+
+// EVENTO 5 - KEYDOWN
+
+const phoneField =
+    document.getElementById('phone');
+
+phoneField.addEventListener(
+    'keydown',
+    (event) => {
+
+        if(event.key === '@'){
+
+            alert(
+                'No se permiten caracteres especiales'
+            );
+
+            event.preventDefault();
+
+        }
+
+    }
+);
+
+// EVENTO 6 - KEYPRESS
+
+const fullNameField =
+    document.getElementById('fullName');
+
+fullNameField.addEventListener(
+    'keypress',
+    () => {
+
+        console.log(
+            fullNameField.value
+        );
+
+    }
+);
+
+
 const reservationForm = document.getElementById('reservationForm');
 
 function serviceMarkup(service, includeButton=false) {
@@ -24,6 +80,44 @@ function serviceMarkup(service, includeButton=false) {
 document.getElementById('featuredServices').innerHTML = services.filter(s => s.featured).map(s => serviceMarkup(s)).join('');
 document.getElementById('servicesCatalog').innerHTML = services.map(s => serviceMarkup(s, true)).join('');
 serviceSelect.insertAdjacentHTML('beforeend', services.map(s => `<option value="${s.name}">${s.name}</option>`).join(''));
+
+// EVENTO 1 - MOUSEENTER
+document.querySelectorAll('.service-row').forEach(service => {
+
+    service.addEventListener('mouseenter', () => {
+
+        service.style.transform = 'scale(1.02)';
+        service.style.transition = '0.3s';
+
+    });
+
+});
+
+// EVENTO 2 - MOUSELEAVE
+document.querySelectorAll('.service-row').forEach(service => {
+
+    service.addEventListener('mouseleave', () => {
+
+        service.style.transform = 'scale(1)';
+
+    });
+
+});
+
+// EVENTO 3 - DBLCLICK
+document.querySelectorAll('.service-row').forEach(service => {
+
+    service.addEventListener('dblclick', () => {
+
+        alert(
+            'Servicio seleccionado para reservación'
+        );
+
+        showScreen('reservar');
+
+    });
+
+});
 
 function showScreen(name) {
   screens.forEach(screen => screen.classList.toggle('active', screen.id === `screen-${name}`));
@@ -189,3 +283,30 @@ document.getElementById('registerForm').addEventListener('submit', event => {
   form.reset();
   form.classList.remove('was-validated');
 });
+
+// EVENTO 7 - WINDOW LOAD
+
+window.addEventListener(
+    'load',
+    () => {
+
+        showToast(
+            'Bienvenido a Raíz & Bruma'
+        );
+
+    }
+);
+
+// EVENTO 8 - RESIZE
+
+window.addEventListener(
+    'resize',
+    () => {
+
+        console.log(
+            'Ancho actual:',
+            window.innerWidth
+        );
+
+    }
+);
