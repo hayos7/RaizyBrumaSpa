@@ -1,0 +1,32 @@
+[
+  {
+    "name": "Masaje de raíces",
+    "duration": 60,
+    "price": 780,
+    "category": "relajante"
+  },
+  {
+    "name": "Facial de bruma fría",
+    "duration": 45,
+    "price": 650,
+    "category": "rostro"
+  },
+  {
+    "name": "Circuito de aguas",
+    "duration": 90,
+    "price": 920,
+    "category": "circuito"
+  },
+  {
+    "name": "Aromaterapia nocturna",
+    "duration": 40,
+    "price": 590,
+    "category": "relajante"
+  },
+  {
+    "name": "Exfoliación corporal de sal",
+    "duration": 50,
+    "price": 710,
+    "category": "cuerpo"
+  }
+]

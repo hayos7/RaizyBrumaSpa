@@ -1,0 +1,15 @@
+{
+  "name": "raizy-bruma-spa",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Maqueta front end de Raíz & Bruma Spa con HTML, CSS, JavaScript y Bootstrap.",
+  "scripts": {
+    "start": "npx serve ."
+  },
+  "dependencies": {
+    "bootstrap": "^5.3.8"
+  },
+  "devDependencies": {
+    "serve": "^14.2.4"
+  }
+}
