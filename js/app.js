@@ -269,7 +269,27 @@ function showToast(message) {
   bootstrap.Toast.getOrCreateInstance(document.getElementById('appToast'), { delay:2400 }).show();
 }
 
-document.getElementById('registerForm').addEventListener('submit', event => {
+const registerForm = document.getElementById('registerForm');
+const registerName = document.getElementById('registerName');
+const registerEventStatus = document.getElementById('registerEventStatus');
+
+function updateRegisterEvent(message) {
+  registerEventStatus.textContent = message;
+}
+
+registerForm.addEventListener('mouseenter', () => {
+  updateRegisterEvent('Evento mouseenter: formulario de alta activo.');
+});
+
+registerForm.addEventListener('mouseleave', () => {
+  updateRegisterEvent('Evento mouseleave: formulario en espera.');
+});
+
+registerName.addEventListener('keyup', () => {
+  updateRegisterEvent(`Evento keyup: ${registerName.value.length} caracteres en el nombre.`);
+});
+
+registerForm.addEventListener('submit', event => {
   event.preventDefault();
   event.stopPropagation();
   const form = event.currentTarget;
@@ -280,6 +300,7 @@ document.getElementById('registerForm').addEventListener('submit', event => {
   sessionStorage.setItem('raizyBrumaProfile', JSON.stringify({ name:profile.name, email:profile.email }));
   bootstrap.Modal.getInstance(document.getElementById('registerModal')).hide();
   showToast(`Cuenta de demostración creada para ${profile.name}.`);
+  updateRegisterEvent('Cuenta creada correctamente mediante el evento submit.');
   form.reset();
   form.classList.remove('was-validated');
 });
