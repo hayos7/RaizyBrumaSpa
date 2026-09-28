@@ -1,0 +1,4 @@
+node_modules/
+.env
+data/reservations.json
+data/users.json

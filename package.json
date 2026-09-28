@@ -4,12 +4,15 @@
   "private": true,
   "description": "Maqueta front end de Raíz & Bruma Spa con HTML, CSS, JavaScript y Bootstrap.",
   "scripts": {
-    "start": "npx serve ."
+    "start": "node server.js",
+    "dev": "node --watch server.js"
   },
   "dependencies": {
-    "bootstrap": "^5.3.8"
-  },
-  "devDependencies": {
-    "serve": "^14.2.4"
+    "bcryptjs": "^3.0.3",
+    "bootstrap": "^5.3.8",
+    "dotenv": "^18.0.4",
+    "express": "^5.2.1",
+    "express-session": "^1.19.0",
+    "morgan": "^1.12.1"
   }
 }
