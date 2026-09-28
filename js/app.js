@@ -1,22 +1,78 @@
-const services = [
-  { name:'Masaje de raíces', description:'Presión profunda con aceites tibios de romero y cedro para liberar tensión acumulada en espalda y hombros.', duration:'60 min', category:'relajante', price:'$780', color:'#5C6B4F', featured:true },
-  { name:'Facial de bruma fría', description:'Limpieza profunda, vapor frío y mascarilla de arcilla mineral para piel cansada por el sol y la ciudad.', duration:'45 min', category:'rostro', price:'$650', color:'#B98A4A', featured:true },
-  { name:'Circuito de aguas', description:'Recorrido guiado por sauna, vapor y alberca de contraste térmico, organizado por temperatura y tiempo.', duration:'90 min', category:'circuito', price:'$920', color:'#1B2420', featured:true },
-  { name:'Aromaterapia nocturna', description:'Sesión suave con aceites esenciales pensada para favorecer el descanso y cerrar el ritmo del día.', duration:'40 min', category:'relajante', price:'$590', color:'#8A7550' },
-  { name:'Exfoliación corporal de sal', description:'Exfoliación con sal de mar y aceite de coco, seguida de hidratación profunda de la piel.', duration:'50 min', category:'cuerpo', price:'$710', color:'#3F4C36' }
-];
+// Los servicios ahora vienen del back end (GET /api/services)
+let services = [];
+try {
+  services = await (await fetch('/api/services')).json();
+} catch (error) {
+  console.error('No se pudieron cargar los servicios:', error);
+}
 
 const screens = document.querySelectorAll('.screen');
 const navLinks = document.querySelectorAll('[data-screen]');
 const serviceSelect = document.getElementById('service');
+// EVENTO 4 - KEYUP
+
+const notesField =
+    document.getElementById('notes');
+
+notesField.addEventListener(
+    'keyup',
+    () => {
+
+        console.log(
+            'Caracteres:',
+            notesField.value.length
+        );
+
+    }
+);
+
+// EVENTO 5 - KEYDOWN
+
+const phoneField =
+    document.getElementById('phone');
+
+phoneField.addEventListener(
+    'keydown',
+    (event) => {
+
+        if(event.key === '@'){
+
+            alert(
+                'No se permiten caracteres especiales'
+            );
+
+            event.preventDefault();
+
+        }
+
+    }
+);
+
+// EVENTO 6 - KEYPRESS
+
+const fullNameField =
+    document.getElementById('fullName');
+
+fullNameField.addEventListener(
+    'keypress',
+    () => {
+
+        console.log(
+            fullNameField.value
+        );
+
+    }
+);
+
+
 const reservationForm = document.getElementById('reservationForm');
 
 function serviceMarkup(service, includeButton=false) {
   return `<article class="service-row">
     <div class="service-swatch" style="background:${service.color}" aria-hidden="true"></div>
     <div><h3>${service.name}</h3><div class="service-description">${service.description}</div></div>
-    <div class="service-meta">${service.duration}${includeButton ? ` · ${service.category}` : ''}</div>
-    <div class="service-price">${service.price}</div>
+    <div class="service-meta">${service.duration} min${includeButton ? ` · ${service.category}` : ''}</div>
+    <div class="service-price">$${service.price}</div>
     ${includeButton ? `<button class="btn rb-btn-primary service-action" type="button" data-reserve="${service.name}">Reservar este servicio</button>` : ''}
   </article>`;
 }
@@ -25,6 +81,44 @@ document.getElementById('featuredServices').innerHTML = services.filter(s => s.f
 document.getElementById('servicesCatalog').innerHTML = services.map(s => serviceMarkup(s, true)).join('');
 serviceSelect.insertAdjacentHTML('beforeend', services.map(s => `<option value="${s.name}">${s.name}</option>`).join(''));
 
+// EVENTO 1 - MOUSEENTER
+document.querySelectorAll('.service-row').forEach(service => {
+
+    service.addEventListener('mouseenter', () => {
+
+        service.style.transform = 'scale(1.02)';
+        service.style.transition = '0.3s';
+
+    });
+
+});
+
+// EVENTO 2 - MOUSELEAVE
+document.querySelectorAll('.service-row').forEach(service => {
+
+    service.addEventListener('mouseleave', () => {
+
+        service.style.transform = 'scale(1)';
+
+    });
+
+});
+
+// EVENTO 3 - DBLCLICK
+document.querySelectorAll('.service-row').forEach(service => {
+
+    service.addEventListener('dblclick', () => {
+
+        alert(
+            'Servicio seleccionado para reservación'
+        );
+
+        showScreen('reservar');
+
+    });
+
+});
+
 function showScreen(name) {
   screens.forEach(screen => screen.classList.toggle('active', screen.id === `screen-${name}`));
   document.querySelectorAll('.rb-nav-links .nav-link').forEach(link => link.classList.toggle('active', link.dataset.screen === name));
@@ -32,6 +126,7 @@ function showScreen(name) {
   if (collapseEl.classList.contains('show')) bootstrap.Collapse.getOrCreateInstance(collapseEl).hide();
   window.scrollTo({ top:0, behavior:'smooth' });
   history.replaceState(null, '', `#${name}`);
+  if (name === 'cuenta') loadMyReservations();
 }
 
 navLinks.forEach(control => control.addEventListener('click', event => {
@@ -50,31 +145,67 @@ const today = new Date();
 today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
 document.getElementById('date').min = today.toISOString().split('T')[0];
 
-reservationForm.addEventListener('submit', event => {
+reservationForm.addEventListener('submit', async event => {
   event.preventDefault();
   event.stopPropagation();
   reservationForm.classList.add('was-validated');
   if (!reservationForm.checkValidity()) return;
   const data = Object.fromEntries(new FormData(reservationForm));
-  const formattedDate = new Intl.DateTimeFormat('es-MX', { dateStyle:'long' }).format(new Date(`${data.date}T12:00:00`));
-  const rows = [
-    ['Nombre', data.fullName], ['Servicio', data.service], ['Fecha', formattedDate],
-    ['Hora', data.time], ['Correo', data.email], ['Teléfono', data.phone]
-  ];
-  document.getElementById('receipt').innerHTML = rows.map(([label,value]) => `<div class="receipt-row"><span>${label}</span><span>${value}</span></div>`).join('');
-  showScreen('confirmacion');
+
+  try {
+    // Envía la reservación al back end (Express)
+    const response = await fetch('/api/reservations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.errors ? result.errors.join(', ') : 'Error al guardar');
+
+    const saved = result.reservation;
+    const formattedDate = new Intl.DateTimeFormat('es-MX', { dateStyle:'long' }).format(new Date(`${saved.date}T12:00:00`));
+    const rows = [
+      ['Folio', saved.id], ['Nombre', saved.fullName], ['Servicio', saved.service], ['Fecha', formattedDate],
+      ['Hora', saved.time], ['Correo', saved.email], ['Teléfono', saved.phone]
+    ];
+    const receipt = document.getElementById('receipt');
+    receipt.innerHTML = '';
+    rows.forEach(([label, value]) => {
+      const row = document.createElement('div');
+      row.className = 'receipt-row';
+      const a = document.createElement('span'); a.textContent = label;
+      const b = document.createElement('span'); b.textContent = value; // textContent evita inyección de HTML
+      row.append(a, b);
+      receipt.appendChild(row);
+    });
+    reservationForm.reset();
+    reservationForm.classList.remove('was-validated');
+    showScreen('confirmacion');
+  } catch (error) {
+    showToast(`No se pudo guardar la reservación: ${error.message}`);
+  }
 });
 
-document.getElementById('loginForm').addEventListener('submit', event => {
+document.getElementById('loginForm').addEventListener('submit', async event => {
   event.preventDefault();
   event.stopPropagation();
   const form = event.currentTarget;
   form.classList.add('was-validated');
   if (!form.checkValidity()) return;
-  bootstrap.Modal.getInstance(document.getElementById('loginModal')).hide();
-  showToast('Sesión iniciada correctamente.');
-  form.reset();
-  form.classList.remove('was-validated');
+  try {
+    const result = await api('/api/auth/login', 'POST', {
+      email: document.getElementById('loginEmail').value,
+      password: document.getElementById('loginPassword').value
+    });
+    setUser(result.user);
+    bootstrap.Modal.getInstance(document.getElementById('loginModal')).hide();
+    showToast(`Sesión iniciada. Hola, ${result.user.name}.`);
+    form.reset();
+    form.classList.remove('was-validated');
+    if (document.getElementById('screen-cuenta').classList.contains('active')) loadMyReservations();
+  } catch (error) {
+    showToast(error.message);
+  }
 });
 
 const initialScreen = ['inicio','servicios','reservar','cuestionario'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'inicio';
@@ -175,17 +306,166 @@ function showToast(message) {
   bootstrap.Toast.getOrCreateInstance(document.getElementById('appToast'), { delay:2400 }).show();
 }
 
-document.getElementById('registerForm').addEventListener('submit', event => {
+const registerForm = document.getElementById('registerForm');
+const registerName = document.getElementById('registerName');
+const registerEventStatus = document.getElementById('registerEventStatus');
+
+function updateRegisterEvent(message) {
+  registerEventStatus.textContent = message;
+}
+
+registerForm.addEventListener('mouseenter', () => {
+  updateRegisterEvent('Evento mouseenter: formulario de alta activo.');
+});
+
+registerForm.addEventListener('mouseleave', () => {
+  updateRegisterEvent('Evento mouseleave: formulario en espera.');
+});
+
+registerName.addEventListener('keyup', () => {
+  updateRegisterEvent(`Evento keyup: ${registerName.value.length} caracteres en el nombre.`);
+});
+
+registerForm.addEventListener('submit', async event => {
   event.preventDefault();
   event.stopPropagation();
   const form = event.currentTarget;
   form.classList.add('was-validated');
   if (!form.checkValidity()) return;
-  const profile = Object.fromEntries(new FormData(form));
-  // Demostración front end. En la siguiente etapa, este objeto se enviará al back end.
-  sessionStorage.setItem('raizyBrumaProfile', JSON.stringify({ name:profile.name, email:profile.email }));
-  bootstrap.Modal.getInstance(document.getElementById('registerModal')).hide();
-  showToast(`Cuenta de demostración creada para ${profile.name}.`);
-  form.reset();
-  form.classList.remove('was-validated');
+  try {
+    const profile = Object.fromEntries(new FormData(form));
+    const result = await api('/api/auth/register', 'POST', profile); // el servidor cifra la contraseña
+    setUser(result.user);
+    bootstrap.Modal.getInstance(document.getElementById('registerModal')).hide();
+    showToast(`Cuenta creada. Bienvenido(a), ${result.user.name}.`);
+    updateRegisterEvent('Cuenta creada correctamente mediante el evento submit.');
+    form.reset();
+    form.classList.remove('was-validated');
+  } catch (error) {
+    showToast(error.message);
+  }
 });
+
+// EVENTO 7 - WINDOW LOAD
+
+window.addEventListener(
+    'load',
+    () => {
+
+        showToast(
+            'Bienvenido a Raíz & Bruma'
+        );
+
+    }
+);
+
+// EVENTO 8 - RESIZE
+
+window.addEventListener(
+    'resize',
+    () => {
+
+        console.log(
+            'Ancho actual:',
+            window.innerWidth
+        );
+
+    }
+);
+
+
+// ---------------------------------------------------------------
+// Comunicación con el back end, sesión y "Mis reservas"
+// ---------------------------------------------------------------
+async function api(url, method = 'GET', body) {
+  const response = await fetch(url, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : {},
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.errors ? data.errors.join(', ') : 'Error del servidor');
+  return data;
+}
+
+let currentUser = null;
+const authButton = document.getElementById('authButton');
+
+function setUser(user) {
+  currentUser = user;
+  authButton.textContent = user ? 'Cerrar sesión' : 'Iniciar sesión';
+  document.getElementById('accountGreeting').textContent = user
+    ? `Sesión iniciada como ${user.name}.`
+    : 'Inicia sesión para consultar tus sesiones.';
+}
+
+authButton.addEventListener('click', async () => {
+  if (!currentUser) {
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('loginModal')).show();
+    return;
+  }
+  await api('/api/auth/logout', 'POST');
+  setUser(null);
+  showToast('Sesión cerrada.');
+  if (document.getElementById('screen-cuenta').classList.contains('active')) showScreen('inicio');
+});
+
+async function loadMyReservations() {
+  const list = document.getElementById('myReservations');
+  list.textContent = '';
+  if (!currentUser) {
+    const p = document.createElement('p');
+    p.textContent = 'Inicia sesión para ver tus reservaciones.';
+    list.appendChild(p);
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('loginModal')).show();
+    return;
+  }
+  try {
+    const items = await api('/api/reservations');
+    if (!items.length) {
+      const p = document.createElement('p');
+      p.textContent = 'Aún no tienes reservaciones.';
+      list.appendChild(p);
+      return;
+    }
+    items.forEach(item => {
+      const card = document.createElement('article');
+      card.className = 'question-card d-flex flex-wrap justify-content-between align-items-center gap-3';
+      const date = new Intl.DateTimeFormat('es-MX', { dateStyle: 'long' }).format(new Date(`${item.date}T12:00:00`));
+      const info = document.createElement('div');
+      const title = document.createElement('strong');
+      title.textContent = item.service;
+      const detail = document.createElement('div');
+      detail.textContent = `${date} · ${item.time} · Folio ${item.id} · ${item.status}`;
+      info.append(title, detail);
+      card.appendChild(info);
+      if (item.status === 'confirmada') {
+        const cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.className = 'btn rb-btn-light-outline';
+        cancel.textContent = 'Cancelar reservación';
+        cancel.addEventListener('click', async () => {
+          try {
+            await api(`/api/reservations/${item.id}`, 'DELETE');
+            showToast('Reservación cancelada.');
+            loadMyReservations();
+          } catch (error) {
+            showToast(error.message);
+          }
+        });
+        card.appendChild(cancel);
+      }
+      list.appendChild(card);
+    });
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+// Al cargar la página, revisa si ya hay una sesión activa
+try {
+  const me = await api('/api/auth/me');
+  setUser(me.user);
+} catch {
+  setUser(null);
+}

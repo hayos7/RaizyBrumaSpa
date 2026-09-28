@@ -1,32 +1,45 @@
 [
   {
     "name": "Masaje de raíces",
+    "description": "Presión profunda con aceites tibios de romero y cedro para liberar tensión acumulada en espalda y hombros.",
     "duration": 60,
     "price": 780,
-    "category": "relajante"
+    "category": "relajante",
+    "color": "#5C6B4F",
+    "featured": true
   },
   {
     "name": "Facial de bruma fría",
+    "description": "Limpieza profunda, vapor frío y mascarilla de arcilla mineral para piel cansada por el sol y la ciudad.",
     "duration": 45,
     "price": 650,
-    "category": "rostro"
+    "category": "rostro",
+    "color": "#B98A4A",
+    "featured": true
   },
   {
     "name": "Circuito de aguas",
+    "description": "Recorrido guiado por sauna, vapor y alberca de contraste térmico, organizado por temperatura y tiempo.",
     "duration": 90,
     "price": 920,
-    "category": "circuito"
+    "category": "circuito",
+    "color": "#1B2420",
+    "featured": true
   },
   {
     "name": "Aromaterapia nocturna",
+    "description": "Sesión suave con aceites esenciales pensada para favorecer el descanso y cerrar el ritmo del día.",
     "duration": 40,
     "price": 590,
-    "category": "relajante"
+    "category": "relajante",
+    "color": "#8A7550"
   },
   {
     "name": "Exfoliación corporal de sal",
+    "description": "Exfoliación con sal de mar y aceite de coco, seguida de hidratación profunda de la piel.",
     "duration": 50,
     "price": 710,
-    "category": "cuerpo"
+    "category": "cuerpo",
+    "color": "#3F4C36"
   }
 ]
