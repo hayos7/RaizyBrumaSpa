@@ -306,6 +306,27 @@ function showToast(message) {
   bootstrap.Toast.getOrCreateInstance(document.getElementById('appToast'), { delay:2400 }).show();
 }
 
+// Botón "Mostrar/Ocultar" en cualquier campo de contraseña
+document.querySelectorAll('.toggle-password').forEach(button => {
+  button.addEventListener('click', () => {
+    const input = document.getElementById(button.dataset.target);
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    button.textContent = show ? 'Ocultar' : 'Mostrar';
+  });
+});
+
+// Valida en vivo que "contraseña" y "confirmar contraseña" coincidan
+function linkPasswordConfirmation(passwordId, confirmId) {
+  const password = document.getElementById(passwordId);
+  const confirm = document.getElementById(confirmId);
+  const check = () => confirm.setCustomValidity(confirm.value && confirm.value !== password.value ? 'no coinciden' : '');
+  password.addEventListener('input', check);
+  confirm.addEventListener('input', check);
+}
+linkPasswordConfirmation('registerPassword', 'registerPasswordConfirm');
+linkPasswordConfirmation('resetPassword', 'resetPasswordConfirm');
+
 const registerForm = document.getElementById('registerForm');
 const registerName = document.getElementById('registerName');
 const registerEventStatus = document.getElementById('registerEventStatus');
@@ -469,3 +490,54 @@ try {
 } catch {
   setUser(null);
 }
+
+
+// ---------------------------------------------------------------
+// Recuperar / restablecer contraseña
+// ---------------------------------------------------------------
+document.getElementById('forgotForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  event.stopPropagation();
+  const form = event.currentTarget;
+  form.classList.add('was-validated');
+  if (!form.checkValidity()) return;
+  try {
+    const result = await api('/api/auth/forgot-password', 'POST', { email: document.getElementById('forgotEmail').value });
+    bootstrap.Modal.getInstance(document.getElementById('forgotModal')).hide();
+    form.reset();
+    form.classList.remove('was-validated');
+    // result.devLink solo existe en modo demostración (sin servidor de correo real)
+    showToast(result.devLink ? `${result.message} Enlace de prueba: ${result.devLink}` : result.message);
+  } catch (error) {
+    showToast(error.message);
+  }
+});
+
+let resetToken = null;
+const resetParam = new URLSearchParams(location.search).get('reset');
+if (resetParam) {
+  resetToken = resetParam;
+  history.replaceState(null, '', location.pathname); // el token no se queda visible en la barra de direcciones
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('resetModal')).show();
+}
+
+document.getElementById('resetForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  event.stopPropagation();
+  const form = event.currentTarget;
+  form.classList.add('was-validated');
+  if (!form.checkValidity()) return;
+  try {
+    await api('/api/auth/reset-password', 'POST', {
+      token: resetToken,
+      password: document.getElementById('resetPassword').value,
+      confirmPassword: document.getElementById('resetPasswordConfirm').value
+    });
+    bootstrap.Modal.getInstance(document.getElementById('resetModal')).hide();
+    form.reset();
+    form.classList.remove('was-validated');
+    showToast('Contraseña actualizada. Ya puedes iniciar sesión con ella.');
+  } catch (error) {
+    showToast(error.message);
+  }
+});

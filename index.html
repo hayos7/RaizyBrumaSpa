@@ -207,9 +207,13 @@
             </div>
             <div class="mb-3">
               <label for="loginPassword" class="form-label">Contraseña</label>
-              <input id="loginPassword" class="form-control" type="password" minlength="6" required>
+              <div class="input-group">
+                <input id="loginPassword" class="form-control" type="password" minlength="6" required>
+                <button class="btn rb-btn-outline toggle-password" type="button" data-target="loginPassword" aria-label="Mostrar contraseña">Mostrar</button>
+              </div>
               <div class="invalid-feedback">La contraseña debe tener al menos 6 caracteres.</div>
             </div>
+            <p class="text-end mb-3"><button class="link-button" type="button" data-bs-target="#forgotModal" data-bs-toggle="modal" data-bs-dismiss="modal">¿Olvidaste tu contraseña?</button></p>
             <button class="btn rb-btn-primary w-100" type="submit">Entrar</button>
             <p class="modal-foot">¿No tienes cuenta? <button class="link-button" type="button" data-bs-target="#registerModal" data-bs-toggle="modal" data-bs-dismiss="modal">Regístrate</button></p>
           </form>
@@ -230,9 +234,78 @@
           <form id="registerForm" class="needs-validation" novalidate>
             <div class="mb-3"><label for="registerName" class="form-label">Nombre completo</label><input id="registerName" name="name" class="form-control" type="text" required><div class="invalid-feedback">Escribe tu nombre.</div></div>
             <div class="mb-3"><label for="registerEmail" class="form-label">Correo electrónico</label><input id="registerEmail" name="email" class="form-control" type="email" required><div class="invalid-feedback">Escribe un correo válido.</div></div>
-            <div class="mb-3"><label for="registerPassword" class="form-label">Contraseña</label><input id="registerPassword" name="password" class="form-control" type="password" minlength="6" required><div class="invalid-feedback">Usa al menos 6 caracteres.</div></div>
+            <div class="mb-3">
+              <label for="registerPassword" class="form-label">Contraseña</label>
+              <div class="input-group">
+                <input id="registerPassword" name="password" class="form-control" type="password" minlength="6" required>
+                <button class="btn rb-btn-outline toggle-password" type="button" data-target="registerPassword" aria-label="Mostrar contraseña">Mostrar</button>
+              </div>
+              <div class="invalid-feedback">Usa al menos 6 caracteres.</div>
+            </div>
+            <div class="mb-3">
+              <label for="registerPasswordConfirm" class="form-label">Confirmar contraseña</label>
+              <div class="input-group">
+                <input id="registerPasswordConfirm" name="confirmPassword" class="form-control" type="password" minlength="6" required>
+                <button class="btn rb-btn-outline toggle-password" type="button" data-target="registerPasswordConfirm" aria-label="Mostrar contraseña">Mostrar</button>
+              </div>
+              <div class="invalid-feedback" id="confirmFeedback">Las contraseñas deben coincidir.</div>
+            </div>
             <div id="registerEventStatus" class="event-status" role="status" aria-live="polite">Escribe tus datos para crear tu perfil.</div>
             <button class="btn rb-btn-primary w-100" type="submit">Crear cuenta</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="forgotModal" tabindex="-1" aria-labelledby="forgotTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content rb-modal">
+        <div class="modal-header border-0 pb-0">
+          <div><h2 class="modal-title fs-3" id="forgotTitle">Recuperar contraseña</h2><p class="modal-sub">Escribe tu correo y te enviaremos un enlace para restablecerla.</p></div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body pt-2">
+          <form id="forgotForm" class="needs-validation" novalidate>
+            <div class="mb-3">
+              <label for="forgotEmail" class="form-label">Correo electrónico</label>
+              <input id="forgotEmail" class="form-control" type="email" required>
+              <div class="invalid-feedback">Escribe un correo válido.</div>
+            </div>
+            <button class="btn rb-btn-primary w-100" type="submit">Enviar enlace</button>
+            <p class="modal-foot"><button class="link-button" type="button" data-bs-target="#loginModal" data-bs-toggle="modal" data-bs-dismiss="modal">Volver a iniciar sesión</button></p>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="resetModal" tabindex="-1" aria-labelledby="resetTitle" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content rb-modal">
+        <div class="modal-header border-0 pb-0">
+          <div><h2 class="modal-title fs-3" id="resetTitle">Nueva contraseña</h2><p class="modal-sub">Escribe y confirma tu nueva contraseña.</p></div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body pt-2">
+          <form id="resetForm" class="needs-validation" novalidate>
+            <div class="mb-3">
+              <label for="resetPassword" class="form-label">Nueva contraseña</label>
+              <div class="input-group">
+                <input id="resetPassword" class="form-control" type="password" minlength="6" required>
+                <button class="btn rb-btn-outline toggle-password" type="button" data-target="resetPassword" aria-label="Mostrar contraseña">Mostrar</button>
+              </div>
+              <div class="invalid-feedback">Usa al menos 6 caracteres.</div>
+            </div>
+            <div class="mb-3">
+              <label for="resetPasswordConfirm" class="form-label">Confirmar contraseña</label>
+              <div class="input-group">
+                <input id="resetPasswordConfirm" class="form-control" type="password" minlength="6" required>
+                <button class="btn rb-btn-outline toggle-password" type="button" data-target="resetPasswordConfirm" aria-label="Mostrar contraseña">Mostrar</button>
+              </div>
+              <div class="invalid-feedback" id="resetConfirmFeedback">Las contraseñas deben coincidir.</div>
+            </div>
+            <button class="btn rb-btn-primary w-100" type="submit">Guardar nueva contraseña</button>
           </form>
         </div>
       </div>

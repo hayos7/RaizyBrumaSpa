@@ -1,9 +1,12 @@
 require('dotenv').config({ quiet: true });
 const express = require('express');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const morgan = require('morgan');
 const fs = require('fs');
+const crypto = require('crypto');
 const path = require('path');
 
 const app = express();
@@ -16,7 +19,8 @@ const DATA_DIR = path.join(__dirname, 'data');
 const FILES = {
   services: path.join(DATA_DIR, 'services.json'),
   users: path.join(DATA_DIR, 'users.json'),
-  reservations: path.join(DATA_DIR, 'reservations.json')
+  reservations: path.join(DATA_DIR, 'reservations.json'),
+  resets: path.join(DATA_DIR, 'resets.json')
 };
 
 function readJSON(file) {
@@ -30,6 +34,14 @@ function writeJSON(file, data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
 
+// Elimina etiquetas HTML/script de los campos de texto libre antes de guardarlos.
+// Es una segunda capa de defensa: aunque el front end ya muestra los datos con textContent
+// (no interpreta HTML), el dato guardado también debe quedar inofensivo por si en el futuro
+// se muestra en otra pantalla, un reporte o un panel que use innerHTML.
+function sanitizeText(value) {
+  return String(value || '').replace(/<[^>]*>/g, '').trim();
+}
+
 // Todas las respuestas de error usan el mismo formato: { ok:false, errors:[...] }
 function fail(res, status, ...errors) {
   return res.status(status).json({ ok: false, errors });
@@ -40,12 +52,43 @@ function fail(res, status, ...errors) {
 // ---------------------------------------------------------------
 app.use(morgan('dev'));            // muestra cada petición en la terminal
 app.use(express.json());           // lee el cuerpo JSON de las peticiones
+// El secreto de la sesión YA NO tiene un valor por defecto conocido (antes era un texto fijo
+// visible en el código; cualquiera que lo leyera podía falsificar una sesión). Si falta en .env,
+// se genera uno aleatorio al arrancar: las sesiones siguen siendo válidas, solo se reinician si
+// el servidor se reinicia sin el secreto guardado.
+const sessionSecret = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.SESSION_SECRET) {
+  console.warn('AVISO: no hay SESSION_SECRET en .env; se generó uno temporal solo para esta ejecución.');
+}
+// Cabeceras de seguridad. Se ajusta la política de contenido (CSP) para seguir permitiendo
+// los recursos externos que ya usa la página (Bootstrap por CDN y Google Fonts); sin este ajuste,
+// Helmet los bloquea por defecto y la página deja de funcionar.
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", 'https://cdn.jsdelivr.net'],
+      styleSrc: ["'self'", 'https://cdn.jsdelivr.net', 'https://fonts.googleapis.com', "'unsafe-inline'"],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+      imgSrc: ["'self'", 'data:']
+    }
+  }
+}));
 app.use(session({                  // sesiones con cookie
-  secret: process.env.SESSION_SECRET || 'cambia-este-secreto-en-el-archivo-env',
+  secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
   cookie: { httpOnly: true, sameSite: 'lax', maxAge: 1000 * 60 * 60 * 2 } // 2 horas
 }));
+
+// Limita los intentos de inicio de sesión, registro y recuperación para frenar ataques de fuerza bruta
+const authLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutos
+  max: 5,                   // 5 intentos por IP en ese lapso
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, errors: ['Demasiados intentos. Espera unos minutos e inténtalo de nuevo.'] }
+});
 
 // Archivos públicos (server.js, .env y data/ NO se exponen)
 app.use('/css', express.static(path.join(__dirname, 'css')));
@@ -64,13 +107,14 @@ const publicUser = u => ({ id: u.id, name: u.name, email: u.email });
 // ---------------------------------------------------------------
 // AUTENTICACIÓN: registro, login, logout y usuario actual
 // ---------------------------------------------------------------
-app.post('/api/auth/register', (req, res) => {
-  const { name, email, password } = req.body;
+app.post('/api/auth/register', authLimiter, (req, res) => {
+  const { name, email, password, confirmPassword } = req.body;
 
   const errors = [];
   if (!name || name.trim().length < 3) errors.push('Nombre inválido (mínimo 3 caracteres)');
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('Correo inválido');
   if (!password || password.length < 6) errors.push('La contraseña debe tener al menos 6 caracteres');
+  if (password !== confirmPassword) errors.push('Las contraseñas no coinciden');
   if (errors.length) return fail(res, 400, ...errors);
 
   const users = readJSON(FILES.users);
@@ -79,7 +123,7 @@ app.post('/api/auth/register', (req, res) => {
 
   const user = {
     id: Date.now(),
-    name: name.trim(),
+    name: sanitizeText(name),
     email: emailNorm,
     passwordHash: bcrypt.hashSync(password, 10), // la contraseña NUNCA se guarda en texto plano
     createdAt: new Date().toISOString()
@@ -91,7 +135,7 @@ app.post('/api/auth/register', (req, res) => {
   res.status(201).json({ ok: true, user: publicUser(user) });
 });
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', authLimiter, (req, res) => {
   const { email, password } = req.body;
   const users = readJSON(FILES.users);
   const user = users.find(u => u.email === String(email || '').trim().toLowerCase());
@@ -115,6 +159,58 @@ app.post('/api/auth/logout', (req, res) => {
 app.get('/api/auth/me', (req, res) => {
   const user = readJSON(FILES.users).find(u => u.id === req.session.userId);
   res.json({ ok: true, user: user ? publicUser(user) : null });
+});
+
+// ---------------------------------------------------------------
+// RECUPERAR CONTRASEÑA ("olvidé mi contraseña")
+// Flujo: 1) el usuario pide el enlace  2) abre el enlace  3) escribe una contraseña nueva
+// ---------------------------------------------------------------
+const RESET_MINUTES = 15;
+const SHOW_RESET_LINK = process.env.NODE_ENV !== 'production'; // modo demostración (sin servicio de correo)
+const sha256 = text => crypto.createHash('sha256').update(text).digest('hex');
+
+app.post('/api/auth/forgot-password', authLimiter, (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail(res, 400, 'Correo inválido');
+
+  // Misma respuesta exista o no el correo, para no revelar quién tiene cuenta
+  const message = 'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.';
+  const user = readJSON(FILES.users).find(u => u.email === email);
+  if (!user) return res.json({ ok: true, message });
+
+  // Solo se guarda el hash del token; el token en sí viaja únicamente en el enlace
+  const token = crypto.randomBytes(32).toString('hex');
+  const now = Date.now();
+  const resets = readJSON(FILES.resets).filter(r => r.expiresAt > now && r.userId !== user.id);
+  resets.push({ userId: user.id, tokenHash: sha256(token), expiresAt: now + RESET_MINUTES * 60 * 1000 });
+  writeJSON(FILES.resets, resets);
+
+  const link = `${req.protocol}://${req.get('host')}/?reset=${token}`;
+  console.log(`\n[Correo simulado] Enlace para restablecer la contraseña de ${email} (válido ${RESET_MINUTES} min):\n${link}\n`);
+  res.json({ ok: true, message, ...(SHOW_RESET_LINK && { devLink: link }) });
+});
+
+app.post('/api/auth/reset-password', (req, res) => {
+  const { token, password, confirmPassword } = req.body;
+
+  const errors = [];
+  if (!password || password.length < 6) errors.push('La contraseña debe tener al menos 6 caracteres');
+  if (password !== confirmPassword) errors.push('Las contraseñas no coinciden');
+  if (errors.length) return fail(res, 400, ...errors);
+
+  const invalidLink = 'El enlace no es válido o ya expiró. Solicita uno nuevo';
+  const resets = readJSON(FILES.resets);
+  const entry = resets.find(r => r.tokenHash === sha256(String(token || '')) && r.expiresAt > Date.now());
+  if (!entry) return fail(res, 400, invalidLink);
+
+  const users = readJSON(FILES.users);
+  const user = users.find(u => u.id === entry.userId);
+  if (!user) return fail(res, 400, invalidLink);
+
+  user.passwordHash = bcrypt.hashSync(password, 10);
+  writeJSON(FILES.users, users);
+  writeJSON(FILES.resets, resets.filter(r => r.userId !== user.id)); // el enlace solo sirve una vez
+  res.json({ ok: true });
 });
 
 // ---------------------------------------------------------------
@@ -178,9 +274,9 @@ app.post('/api/reservations', (req, res) => {
   const reservation = {
     id: Date.now(),
     userId: req.session.userId || null,
-    fullName: fullName.trim(),
+    fullName: sanitizeText(fullName),
     phone, email, service, date, time,
-    notes: (notes || '').trim(),
+    notes: sanitizeText(notes),
     status: 'confirmada',
     createdAt: new Date().toISOString()
   };
